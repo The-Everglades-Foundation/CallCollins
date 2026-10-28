@@ -12,6 +12,10 @@ Production: [callcollins.yacosta-240.workers.dev](https://callcollins.yacosta-24
 
 Preview: `*-callcollins.yacosta-240.workers.dev`
 
+The Worker `callcollins` is published. The D1 schema is already applied on
+`call-collins`, and the Worker secret is set. Checked October 28, 2026
+(Eastern Time): sign-in opens the room, and a short draft returned text.
+
 Repository:
 [The-Everglades-Foundation/CallCollins](https://github.com/The-Everglades-Foundation/CallCollins)
 
@@ -65,6 +69,9 @@ npx wrangler d1 migrations apply call-collins --local
 
 Copy `.dev.vars.example` to `.dev.vars` and set `ANTHROPIC_API_KEY` there
 for local drafts. `.dev.vars` stays off git.
+
+The remote schema is already applied, and the published Worker already
+has the key. Run these again only when republishing:
 
 ```bash
 npx wrangler d1 migrations apply call-collins --remote
