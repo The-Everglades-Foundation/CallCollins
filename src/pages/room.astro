@@ -1,0 +1,231 @@
+---
+import { env } from "cloudflare:workers";
+import Layout from "../layouts/Layout.astro";
+import { listDrafts, listHouse, listMessages, listShelf, readDraft, readStyleCard, readExecutive } from "../lib/db.ts";
+
+const executive = await readExecutive(env.DB, Astro.cookies.get("cc_session")?.value);
+if (!executive) return Astro.redirect("/");
+
+const drafts = await listDrafts(env.DB, executive.id);
+const requested = Astro.url.searchParams.get("draft");
+const draft = requested ? await readDraft(env.DB, executive.id, requested) : null;
+const messages = draft ? await listMessages(env.DB, draft.id) : [];
+const house = await listHouse(env.DB);
+const shelf = await listShelf(env.DB, executive.id);
+const style = await readStyleCard(env.DB);
+const error = Astro.url.searchParams.get("error");
+const latestSpeech = [...messages].reverse().find((message) => message.role === "assistant");
+
+const labels: Record<string, string> = {
+  brief: "Brief",
+  speech: "Remarks",
+  shorter: "Shorter",
+  boardroom: "Boardroom",
+  talking_points: "Talking points",
+};
+
+function clip(value: string): string {
+  const clean = value.replace(/\s+/g, " ").trim();
+  return clean.length > 72 ? `${clean.slice(0, 71)}…` : clean;
+}
+---
+
+<Layout title="Call Collins">
+  <div class="room">
+    <aside class="sidebar">
+      <div>
+        <p class="mark">Everglades Foundation</p>
+        <h1>Call Collins</h1>
+        <p class="who">{executive.name}</p>
+      </div>
+      <a class="button" href="/room">New remarks</a>
+      <section>
+        <h2>Drafts</h2>
+        {drafts.length === 0 ? (
+          <p class="empty">No remarks yet.</p>
+        ) : (
+          <ul>
+            {drafts.map((item) => (
+              <li><a href={`/room?draft=${item.id}`}>{clip(item.point)}</a></li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <section>
+        <h2>House voice</h2>
+        {house.length === 0 ? (
+          <p class="empty">Add speeches, letters, or talking points.</p>
+        ) : (
+          <ul>
+            {house.slice(0, 8).map((sample) => (
+              <li class="empty">{clip(sample.title)}</li>
+            ))}
+          </ul>
+        )}
+        <form class="stack" method="post" action="/api/voice" enctype="multipart/form-data">
+          <label for="voice-file">PDF, DOCX, or TXT</label>
+          <input id="voice-file" name="files" type="file" accept=".pdf,.docx,.txt,.md,text/plain" multiple required />
+          <input name="speaker" type="text" placeholder="Speaker, usually Mike Collins" />
+          <input name="title" type="text" placeholder="Title, optional" />
+          <input name="audience" type="text" placeholder="Audience, optional" />
+          <input name="occasion" type="text" placeholder="Occasion, optional" />
+          <input name="spoken_on" type="text" placeholder="Date, optional" />
+          <button class="quiet" type="submit">Add examples</button>
+        </form>
+      </section>
+      <section>
+        <h2>Speaker shelf</h2>
+        {shelf.length === 0 ? (
+          <p class="empty">Approved remarks land here.</p>
+        ) : (
+          <ul>
+            {shelf.slice(0, 8).map((sample) => (
+              <li class="empty">{clip(sample.title)}</li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <section>
+        <h2>Style card</h2>
+        <p class="empty">{style || "Refresh this after House voice examples are loaded."}</p>
+        <form method="post" action="/api/style">
+          <button class="quiet" type="submit">Refresh style card</button>
+        </form>
+      </section>
+      <form method="post" action="/api/sign-out">
+        <button class="quiet" type="submit">Sign out</button>
+      </form>
+    </aside>
+    <main class="stage" data-draft-id={draft?.id ?? ""}>
+      {error && <p class="alert" role="alert">{error}</p>}
+      {draft ? (
+        <header>
+          <p class="kicker">This draft</p>
+          <h2>{draft.point}</h2>
+          <p class="meta">
+            {draft.audience} · {draft.occasion}
+            {draft.file_name ? ` · ${draft.file_name}` : ""}
+          </p>
+        </header>
+      ) : (
+        <header>
+          <p class="kicker">New remarks</p>
+          <h2>Audience, occasion, and the point.</h2>
+        </header>
+      )}
+      <div class="thread" id="thread">
+        {messages.map((message) => (
+          <article class="piece">
+            <p class="kicker">{labels[message.kind] ?? "Note"}</p>
+            <p class={message.role === "assistant" ? "speech" : ""}>{message.content}</p>
+          </article>
+        ))}
+        <article class="piece" id="live" hidden>
+          <p class="kicker">Remarks</p>
+          <p class="speech" id="live-speech"></p>
+        </article>
+      </div>
+      {latestSpeech && draft && (
+        <div class="actions" id="revisions">
+          <button type="button" data-kind="shorter">Shorter</button>
+          <button type="button" data-kind="boardroom">More boardroom</button>
+          <button type="button" data-kind="talking_points">Talking points</button>
+          <form method="post" action="/api/shelf">
+            <input type="hidden" name="draft" value={draft.id} />
+            <button class="quiet" type="submit">Add to my shelf</button>
+          </form>
+        </div>
+      )}
+      {!draft && (
+        <form class="composer stack" id="composer">
+          <label for="audience">Audience</label>
+          <input id="audience" name="audience" required maxlength="200" />
+          <label for="occasion">Occasion</label>
+          <input id="occasion" name="occasion" required maxlength="200" />
+          <label for="point">The point</label>
+          <input id="point" name="point" required maxlength="500" />
+          <label for="notes">Notes</label>
+          <textarea id="notes" name="notes" placeholder="Paste the brief."></textarea>
+          <label for="file">Brief file</label>
+          <input id="file" name="file" type="file" accept=".pdf,.docx,.txt,.md,text/plain" />
+          <p id="status" role="status"></p>
+          <div class="actions">
+            <button type="submit">Draft remarks</button>
+          </div>
+        </form>
+      )}
+      {draft && <p id="status" role="status"></p>}
+      <noscript><p class="meta">Drafting and revisions need JavaScript. House voice, the shelf, and sign-in work from the forms.</p></noscript>
+    </main>
+  </div>
+</Layout>
+
+<script>
+  const stage = document.querySelector("main.stage");
+  const status = document.querySelector("#status");
+  const live = document.querySelector("#live");
+  const liveSpeech = document.querySelector("#live-speech");
+  const composer = document.querySelector("#composer");
+
+  function setBusy(busy: boolean) {
+    document.querySelectorAll("button").forEach((button) => {
+      if (button instanceof HTMLButtonElement) button.disabled = busy;
+    });
+  }
+
+  async function draft(url: string, body: BodyInit, json = false) {
+    if (!(status instanceof HTMLElement) || !(live instanceof HTMLElement) || !(liveSpeech instanceof HTMLElement)) return;
+    setBusy(true);
+    status.textContent = "Drafting…";
+    live.hidden = false;
+    liveSpeech.textContent = "";
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        body,
+        headers: json ? { "content-type": "application/json" } : undefined,
+      });
+      if (!response.ok || !response.body) {
+        let message = "The draft did not start.";
+        try {
+          const data = await response.json();
+          if (typeof data.error === "string") message = data.error;
+        } catch {
+          message = "The draft did not start.";
+        }
+        status.textContent = message;
+        live.hidden = true;
+        setBusy(false);
+        return;
+      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const step = await reader.read();
+        if (step.done) break;
+        liveSpeech.textContent += decoder.decode(step.value, { stream: true });
+      }
+      const id = response.headers.get("x-draft-id") || stage?.getAttribute("data-draft-id");
+      if (id) window.location.href = `/room?draft=${id}`;
+      else setBusy(false);
+    } catch {
+      status.textContent = "The draft stopped before it could be saved.";
+      setBusy(false);
+    }
+  }
+
+  composer?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!(composer instanceof HTMLFormElement)) return;
+    void draft("/api/drafts", new FormData(composer));
+  });
+
+  document.querySelectorAll("[data-kind]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const id = stage?.getAttribute("data-draft-id");
+      const kind = button.getAttribute("data-kind");
+      if (!id || !kind) return;
+      void draft(`/api/drafts/${id}/revise`, JSON.stringify({ kind }), true);
+    });
+  });
+</script>

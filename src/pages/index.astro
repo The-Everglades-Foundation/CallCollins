@@ -1,0 +1,31 @@
+---
+import { env } from "cloudflare:workers";
+import Layout from "../layouts/Layout.astro";
+import { readExecutive } from "../lib/db.ts";
+
+const executive = await readExecutive(env.DB, Astro.cookies.get("cc_session")?.value);
+if (executive) return Astro.redirect("/room");
+const error = Astro.url.searchParams.get("error");
+---
+
+<Layout title="Call Collins">
+  <main class="sign-in">
+    <section class="card">
+      <p class="mark">Everglades Foundation</p>
+      <h1>Call Collins</h1>
+      <p class="lede">
+        A private writing room. Sign in with your email and name. Each account keeps its own drafts.
+      </p>
+      {error && <p class="alert" role="alert">{error}</p>}
+      <form method="post" action="/api/session">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" autocomplete="email" required />
+        <label for="name">Name</label>
+        <input id="name" name="name" type="text" autocomplete="name" maxlength="80" required />
+        <div class="actions">
+          <button type="submit">Enter the room</button>
+        </div>
+      </form>
+    </section>
+  </main>
+</Layout>
