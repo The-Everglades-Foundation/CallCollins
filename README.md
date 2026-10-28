@@ -8,6 +8,10 @@ The site is an Astro app on Cloudflare Workers. Claude is called from the
 Worker with the `ANTHROPIC_API_KEY` secret. Visitors are not asked for a
 key, and the key is not in the page.
 
+Production: [callcollins.yacosta-240.workers.dev](https://callcollins.yacosta-240.workers.dev)
+
+Preview: `*-callcollins.yacosta-240.workers.dev`
+
 Repository:
 [The-Everglades-Foundation/CallCollins](https://github.com/The-Everglades-Foundation/CallCollins)
 
@@ -68,11 +72,11 @@ npm run deploy
 npx wrangler secret put ANTHROPIC_API_KEY
 ```
 
-`npm run deploy` builds the site and publishes the Worker. `wrangler
-secret put` stores the key on that Worker. The model id is the var
-`ANTHROPIC_MODEL`, set to `claude-sonnet-5-5`.
+`npm run deploy` builds the site and publishes the Worker `callcollins`.
+`wrangler secret put` stores the key on that Worker. The model id is the
+var `ANTHROPIC_MODEL`, set to `claude-sonnet-5-5`.
 
-The `*.workers.dev` address is public. Sign-in is email and name.
+The workers.dev address is public. Sign-in is email and name.
 
 ## Project structure
 
