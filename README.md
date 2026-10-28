@@ -16,6 +16,10 @@ The Worker `callcollins` is published. The D1 schema is already applied on
 `call-collins`, and the Worker secret is set. Checked October 28, 2026
 (Eastern Time): sign-in opens the room, and a short draft returned text.
 
+The first local build was the same morning. The Astro build succeeded at
+10:26 AM Eastern Time. Wrangler was ready at `http://127.0.0.1:8787` at
+10:27 AM, and local sign-in and the room returned HTTP 200 at 10:28 AM.
+
 Repository:
 [The-Everglades-Foundation/CallCollins](https://github.com/The-Everglades-Foundation/CallCollins)
 
