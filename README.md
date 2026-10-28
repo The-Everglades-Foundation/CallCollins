@@ -1,61 +1,86 @@
 # Call Collins
 
-Private writing room for The Everglades Foundation. An executive uploads
-or pastes a brief and receives remarks drafted in Mike Collins' voice.
+Private writing room for The Everglades Foundation. An executive signs in
+with an email and name, gives a brief, and receives remarks drafted in
+Mike Collins' voice.
+
+The site is an Astro app on Cloudflare Workers. Claude is called from the
+Worker with the `ANTHROPIC_API_KEY` secret. Visitors are not asked for a
+key, and the key is not in the page.
 
 Repository:
 [The-Everglades-Foundation/CallCollins](https://github.com/The-Everglades-Foundation/CallCollins)
 
-## Status
-
-The studio is an Astro app with the Cloudflare adapter. It has run
-locally. This repository currently holds the project README. A
-Cloudflare deploy still needs Wrangler access, a D1 database named
-`call-collins`, an R2 bucket named `call-collins-files`, the
-`ANTHROPIC_API_KEY` secret, and the remote migration.
-
-`ANTHROPIC_WORKSPACE_ID` is optional. Claude drafts with the Anthropic
-key and the Default workspace.
-
-## A draft
+## What a draft does
 
 Sign-in is the executive's email and name. Each account keeps its own
-ideas.
+drafts and speaker shelf.
 
 The brief records the audience, the occasion, and the point. It accepts
-a PDF, a DOCX, a TXT file, or pasted notes, and shows that file on the
-draft.
+pasted notes or one PDF, DOCX, or TXT file. The studio shows the file
+name and uses the extracted text.
 
-The studio streams a speech, then keeps revisions in the same thread:
-shorter, more boardroom, and talking points. The Vercel AI SDK is the
-writing layer, so the model can be swapped without rewriting the room.
+The Worker streams the remarks. On the same draft, the room can ask for
+a shorter version, a more boardroom version, or talking points.
 
-If Claude fails before a speech arrives, the studio saves an on-machine
-draft and keeps the brief on the thread.
+If Claude fails before any remarks arrive, the brief stays on the draft.
 
 ## Voice
 
-**House voice** is Collins' own speeches, letters, talking points, and
-op-eds. About 50 examples are already loaded. The ink sidebar can add
-more PDF, DOCX, or TXT examples, several at a time. Those uploads
-join House voice as examples.
+**House voice** is shared. The sidebar accepts PDF, DOCX, and TXT
+examples, several at a time. Those uploads are examples. The library
+starts empty until someone adds them.
 
-**Speaker shelf** is an executive's finished speeches. A speech joins
-the shelf when someone marks it approved. Approving a finished draft
-opens that executive's shelf. Each file carries a date, speaker,
-audience, and occasion.
+**Speaker shelf** is that executive's finished remarks. "Add to my shelf"
+stores the latest remarks for that account. Newer approved speeches
+outweigh older ones, and retrieval favors speeches close to the occasion.
 
-Retrieval favors speeches close to the occasion. Newer approved
-speeches outweigh older ones.
+**Style card** is a short distillation of the loaded examples. "Refresh
+style card" rewrites it. The model itself stays unchanged.
 
-A short style card is distilled from material the firm is allowed to
-use and stored as chunks a draft can retrieve. The card refreshes from
-the loaded House voice examples, and a control can refresh it from
-approved speeches. The model itself stays unchanged. Mailbox
-passwords stay out of the studio, and drafts leave email accounts
-untouched.
+Drafts and examples are stored as text in the D1 database `call-collins`.
+The original file bytes are not kept.
 
-## Room
+## Commands
 
-The drafting room is an ink sidebar, warm paper, a serif speech, and a
-quiet composer.
+Requires Node.js 22.12 or newer.
+
+```bash
+npm install
+npm test
+npm run dev
+```
+
+Local development uses Wrangler's local D1. Sign in to the Cloudflare
+account once with `npx wrangler login` before a remote migration or
+deploy. Apply the schema once:
+
+```bash
+npx wrangler d1 migrations apply call-collins --local
+```
+
+Copy `.dev.vars.example` to `.dev.vars` and set `ANTHROPIC_API_KEY` there
+for local drafts. `.dev.vars` stays off git.
+
+```bash
+npx wrangler d1 migrations apply call-collins --remote
+npm run deploy
+npx wrangler secret put ANTHROPIC_API_KEY
+```
+
+`npm run deploy` builds the site and publishes the Worker. `wrangler
+secret put` stores the key on that Worker. The model id is the var
+`ANTHROPIC_MODEL`, set to `claude-sonnet-5-5`.
+
+The `*.workers.dev` address is public. Sign-in is email and name.
+
+## Project structure
+
+```text
+src/pages/index.astro          sign-in
+src/pages/room.astro           drafting room
+src/pages/api/                 session, drafts, voice, shelf, style card
+src/lib/claude.ts              server-side Messages API
+migrations/0001_init.sql       D1 schema
+wrangler.jsonc                 Worker, D1 binding, observability
+```

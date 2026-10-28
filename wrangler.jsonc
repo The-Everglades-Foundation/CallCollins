@@ -1,0 +1,35 @@
+{
+  "name": "call-collins",
+  "compatibility_date": "2026-10-28",
+  "compatibility_flags": ["nodejs_compat"],
+  "upload_source_maps": true,
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.01
+    }
+  },
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist"
+  },
+  "vars": {
+    "ANTHROPIC_MODEL": "claude-sonnet-5-5"
+  },
+  "secrets": {
+    "required": ["ANTHROPIC_API_KEY"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "call-collins",
+      "database_id": "07ded38e-12f1-4f14-9669-aa66d49ea84e",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

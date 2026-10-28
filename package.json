@@ -1,0 +1,27 @@
+{
+  "name": "call-collins",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "wrangler dev",
+    "deploy": "astro build && wrangler deploy --config dist/server/wrangler.json",
+    "types": "wrangler types --include-runtime false",
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "migrate:local": "wrangler d1 migrations apply call-collins --local",
+    "migrate:remote": "wrangler d1 migrations apply call-collins --remote"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^14.4.2",
+    "astro": "^7.4.2",
+    "fflate": "^0.8.3",
+    "unpdf": "^1.9.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261028.1",
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.154.0"
+  }
+}
