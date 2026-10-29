@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
 import { ensureExecutive, readExecutive, type Executive } from "./db.ts";
-import { isPreviewHost, nameFromEmail } from "./gate.ts";
+import { accessTokenFrom, isPreviewHost, nameFromEmail } from "./gate.ts";
 
 const jwksByIssuer = new Map<string, JWTVerifyGetKey>();
 
@@ -16,8 +16,11 @@ export async function resolveExecutive(request: Request, sessionToken: string | 
 async function accessEmail(request: Request): Promise<string | null> {
   const team = env.ACCESS_TEAM_DOMAIN?.replace(/\/$/, "");
   const aud = env.ACCESS_AUD?.trim();
-  const token = request.headers.get("cf-access-jwt-assertion");
-  if (!team || !aud || !token) return null;
+  const token = accessTokenFrom(request.headers);
+  if (!team || !aud || !token) {
+    console.error(JSON.stringify({ event: "access_sign_in_failed", reason: !team || !aud ? "missing_config" : "missing_token" }));
+    return null;
+  }
   try {
     const { payload } = await jwtVerify(token, jwks(team), { issuer: team, audience: aud });
     const email = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";

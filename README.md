@@ -100,16 +100,18 @@ var `ANTHROPIC_MODEL`, set to `claude-sonnet-5-5`.
 The production workers.dev address is public. Sign-in there is still
 email and name.
 
-Preview URLs (`*-callcollins.yacosta-240.workers.dev`) are already behind
-Cloudflare Access. The reusable policy allows
-`@evergladesfoundation.org`, and the account's one-time PIN provider
-sends the code. The preview Worker checks the Access token in
-`Cf-Access-Jwt-Assertion` against
-`https://evergladesfoundation.cloudflareaccess.com` and the audience tag
-in `ACCESS_AUD`. This app serves static assets, so it does not read
-`ctx.access`. A valid token opens the existing account for that email,
-or creates one. Signing out also ends the Access session. Production is
-unchanged until Access is turned on for that hostname too.
+Preview URLs are already behind Cloudflare Access. The reusable policy
+allows `@evergladesfoundation.org`, and the account's one-time PIN
+provider sends the code. Worker Previews do not inherit production
+settings, so `previews` in `wrangler.jsonc` repeats the Access team,
+audience tag, and the `call-collins` database. The preview Worker checks
+the Access token from `Cf-Access-Jwt-Assertion` or the
+`CF_Authorization` cookie against
+`https://evergladesfoundation.cloudflareaccess.com`. This app serves
+static assets, so it does not read `ctx.access`. A valid token opens the
+existing account for that email, or creates one. Signing out also ends
+the Access session. Production is unchanged until Access is turned on
+for that hostname too.
 
 ## Project structure
 

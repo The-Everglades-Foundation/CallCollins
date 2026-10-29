@@ -33,5 +33,19 @@
       "database_id": "07ded38e-12f1-4f14-9669-aa66d49ea84e",
       "migrations_dir": "migrations"
     }
-  ]
+  ],
+  "previews": {
+    "vars": {
+      "ANTHROPIC_MODEL": "claude-sonnet-5-5",
+      "ACCESS_TEAM_DOMAIN": "https://evergladesfoundation.cloudflareaccess.com",
+      "ACCESS_AUD": "ec08e59bbba3d7c05dd2454c60d3d9742d30e8d2715d68ea51c9b34a5d01ea76"
+    },
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_name": "call-collins",
+        "database_id": "07ded38e-12f1-4f14-9669-aa66d49ea84e"
+      }
+    ]
+  }
 }

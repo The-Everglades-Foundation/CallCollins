@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isPreviewHost, nameFromEmail } from "../src/lib/gate.ts";
+import { accessTokenFrom, isPreviewHost, nameFromEmail } from "../src/lib/gate.ts";
 
 test("only Worker preview hostnames use Access", () => {
   assert.equal(isPreviewHost("callcollins.yacosta-240.workers.dev"), false);
@@ -9,6 +9,18 @@ test("only Worker preview hostnames use Access", () => {
   assert.equal(isPreviewHost("callcollins.yacosta-240.workers.dev."), false);
   assert.equal(isPreviewHost("evil-callcollins.example.com"), false);
   assert.equal(isPreviewHost("localhost"), false);
+});
+
+test("Access identity comes from the header or the authorization cookie", () => {
+  const headers = (values: Record<string, string>) => ({
+    get: (name: string) => values[name.toLowerCase()] ?? null,
+  });
+  assert.equal(accessTokenFrom(headers({ "cf-access-jwt-assertion": "header-token" })), "header-token");
+  assert.equal(
+    accessTokenFrom(headers({ cookie: "theme=paper; CF_Authorization=cookie-token; other=1" })),
+    "cookie-token",
+  );
+  assert.equal(accessTokenFrom(headers({})), null);
 });
 
 test("a new Access account gets a readable name from the email", () => {
