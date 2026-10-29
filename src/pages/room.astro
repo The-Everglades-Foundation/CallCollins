@@ -1,9 +1,10 @@
 ---
 import { env } from "cloudflare:workers";
 import Layout from "../layouts/Layout.astro";
-import { listDrafts, listHouse, listMessages, listShelf, readDraft, readStyleCard, readExecutive } from "../lib/db.ts";
+import { resolveExecutive } from "../lib/access.ts";
+import { listDrafts, listHouse, listMessages, listShelf, readDraft, readStyleCard } from "../lib/db.ts";
 
-const executive = await readExecutive(env.DB, Astro.cookies.get("cc_session")?.value);
+const executive = await resolveExecutive(Astro.request, Astro.cookies.get("cc_session")?.value);
 if (!executive) return Astro.redirect("/");
 
 const drafts = await listDrafts(env.DB, executive.id);

@@ -1,8 +1,10 @@
 # Call Collins
 
-Private writing room for The Everglades Foundation. An executive signs in
-with an email and name, gives a brief, and receives remarks drafted in
-Mike Collins' voice.
+Private writing room for The Everglades Foundation. On production, an
+executive signs in with an email and name. On a preview URL, Cloudflare
+Access checks an Everglades Foundation email first, and the room opens
+for that address. The executive gives a brief and receives remarks
+drafted in Mike Collins' voice.
 
 The site is an Astro app on Cloudflare Workers. Claude is called from the
 Worker with the `ANTHROPIC_API_KEY` secret. Visitors are not asked for a
@@ -25,8 +27,9 @@ Repository:
 
 ## What a draft does
 
-Sign-in is the executive's email and name. Each account keeps its own
-drafts and speaker shelf.
+Production sign-in is the executive's email and name. Preview sign-in is
+the email Cloudflare Access verified. Each account keeps its own drafts
+and speaker shelf. The preview form cannot choose a different email.
 
 The brief records the audience, the occasion, and the point. It accepts
 pasted notes or one PDF, DOCX, or TXT file. The studio shows the file
@@ -94,7 +97,19 @@ npx wrangler secret put ANTHROPIC_API_KEY
 `wrangler secret put` stores the key on that Worker. The model id is the
 var `ANTHROPIC_MODEL`, set to `claude-sonnet-5-5`.
 
-The workers.dev address is public. Sign-in is email and name.
+The production workers.dev address is public. Sign-in there is still
+email and name.
+
+Preview URLs (`*-callcollins.yacosta-240.workers.dev`) are already behind
+Cloudflare Access. The reusable policy allows
+`@evergladesfoundation.org`, and the account's one-time PIN provider
+sends the code. The preview Worker checks the Access token in
+`Cf-Access-Jwt-Assertion` against
+`https://evergladesfoundation.cloudflareaccess.com` and the audience tag
+in `ACCESS_AUD`. This app serves static assets, so it does not read
+`ctx.access`. A valid token opens the existing account for that email,
+or creates one. Signing out also ends the Access session. Production is
+unchanged until Access is turned on for that hostname too.
 
 ## Project structure
 

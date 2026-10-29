@@ -1,9 +1,10 @@
 ---
-import { env } from "cloudflare:workers";
 import Layout from "../layouts/Layout.astro";
-import { readExecutive } from "../lib/db.ts";
+import { resolveExecutive } from "../lib/access.ts";
+import { isPreviewHost } from "../lib/gate.ts";
 
-const executive = await readExecutive(env.DB, Astro.cookies.get("cc_session")?.value);
+const preview = isPreviewHost(Astro.url.hostname);
+const executive = await resolveExecutive(Astro.request, Astro.cookies.get("cc_session")?.value);
 if (executive) return Astro.redirect("/room");
 const error = Astro.url.searchParams.get("error");
 ---
@@ -13,11 +14,17 @@ const error = Astro.url.searchParams.get("error");
     <section class="card">
       <p class="mark">Everglades Foundation</p>
       <h1>Call Collins</h1>
-      <p class="lede">
-        A private writing room. Sign in with your email and name. Each account keeps its own drafts.
-      </p>
+      {preview ? (
+        <p class="lede">
+          This preview signs you in with Cloudflare Access. Use an Everglades Foundation email. The room opens for that address.
+        </p>
+      ) : (
+        <p class="lede">
+          A private writing room. Sign in with your email and name. Each account keeps its own drafts.
+        </p>
+      )}
       {error && <p class="alert" role="alert">{error}</p>}
-      <form method="post" action="/api/session">
+      {!preview && <form method="post" action="/api/session">
         <label for="email">Email</label>
         <input id="email" name="email" type="email" autocomplete="email" required />
         <label for="name">Name</label>
@@ -25,7 +32,7 @@ const error = Astro.url.searchParams.get("error");
         <div class="actions">
           <button type="submit">Enter the room</button>
         </div>
-      </form>
+      </form>}
     </section>
   </main>
 </Layout>

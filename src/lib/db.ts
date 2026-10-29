@@ -40,6 +40,30 @@ export async function readExecutive(db: D1Database, token: string | undefined): 
     .first<Executive>();
 }
 
+export async function ensureExecutive(db: D1Database, email: string, name: string): Promise<Executive> {
+  const existing = await db
+    .prepare("SELECT id, email, name FROM executives WHERE email = ?")
+    .bind(email)
+    .first<Executive>();
+  if (existing) return existing;
+  const created = nowIso();
+  const id = newId();
+  await db
+    .prepare(
+      `INSERT INTO executives (id, email, name, created_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(email) DO NOTHING`,
+    )
+    .bind(id, email, name, created)
+    .run();
+  console.log(JSON.stringify({ event: "sign_in" }));
+  const row = await db
+    .prepare("SELECT id, email, name FROM executives WHERE email = ?")
+    .bind(email)
+    .first<Executive>();
+  if (!row) throw new Error("The account could not be saved.");
+  return row;
+}
+
 export async function signIn(db: D1Database, email: string, name: string): Promise<string> {
   const created = nowIso();
   const id = newId();

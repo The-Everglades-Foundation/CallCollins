@@ -2,8 +2,12 @@ import type { APIRoute } from "astro";
 import { env } from "cloudflare:workers";
 import { signIn } from "../../lib/db.ts";
 import { field, redirect } from "../../lib/form.ts";
+import { isPreviewHost } from "../../lib/gate.ts";
 
 export const POST: APIRoute = async ({ request, cookies }) => {
+  if (isPreviewHost(new URL(request.url).hostname)) {
+    return redirect("/?error=" + encodeURIComponent("This preview signs you in with Cloudflare Access."));
+  }
   const form = await request.formData();
   const email = field(form, "email", 200).toLowerCase();
   const name = field(form, "name", 80);

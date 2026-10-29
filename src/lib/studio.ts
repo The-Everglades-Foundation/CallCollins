@@ -95,6 +95,6 @@ async function persist(draftId: string, kind: string, collected: string): Promis
 }
 
 export async function currentExecutive(context: APIContext) {
-  const { readExecutive } = await import("./db.ts");
-  return readExecutive(env.DB, context.cookies.get("cc_session")?.value);
+  const { resolveExecutive } = await import("./access.ts");
+  return resolveExecutive(context.request, context.cookies.get("cc_session")?.value);
 }

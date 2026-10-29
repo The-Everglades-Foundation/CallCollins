@@ -19,7 +19,9 @@
     "directory": "./dist"
   },
   "vars": {
-    "ANTHROPIC_MODEL": "claude-sonnet-5-5"
+    "ANTHROPIC_MODEL": "claude-sonnet-5-5",
+    "ACCESS_TEAM_DOMAIN": "https://evergladesfoundation.cloudflareaccess.com",
+    "ACCESS_AUD": "ec08e59bbba3d7c05dd2454c60d3d9742d30e8d2715d68ea51c9b34a5d01ea76"
   },
   "secrets": {
     "required": ["ANTHROPIC_API_KEY"]
