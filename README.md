@@ -39,19 +39,26 @@ If Claude fails before any remarks arrive, the brief stays on the draft.
 
 ## Voice
 
-**House voice** is shared. The sidebar accepts PDF, DOCX, and TXT
-examples, several at a time. Those uploads are examples. The library
-starts empty until someone adds them.
+**House voice** is shared. On October 29, 2026 (Eastern Time), 27
+foundation drafts were loaded into the live database. They are remarks,
+letters, a blog draft, and handouts. The drafts are Eric Eikenberg's,
+including copies marked with JMC edits. The drafting instruction still
+asks for Mike Collins' voice. The sidebar can add more PDF, DOCX, or TXT
+examples.
+
+Two files from that upload were not stored. One is a New York Times
+article. The other is a packet of copyrighted news clips.
 
 **Speaker shelf** is that executive's finished remarks. "Add to my shelf"
 stores the latest remarks for that account. Newer approved speeches
 outweigh older ones, and retrieval favors speeches close to the occasion.
 
-**Style card** is a short distillation of the loaded examples. "Refresh
-style card" rewrites it. The model itself stays unchanged.
+**Style card** was refreshed the same morning from the twelve newest
+remarks. "Refresh style card" rewrites it. The model itself stays
+unchanged.
 
 Drafts and examples are stored as text in the D1 database `call-collins`.
-The original file bytes are not kept.
+The original file bytes are not kept, and the drafts are not in git.
 
 ## Commands
 
