@@ -35,6 +35,7 @@ export async function streamRemarks(input: {
   kind: string;
   system: string;
   user: string;
+  note?: string;
 }): Promise<Response> {
   let upstream: Response;
   try {
@@ -50,6 +51,19 @@ export async function streamRemarks(input: {
     const message = error instanceof ClaudeError ? error.message : "Claude could not draft.";
     console.error(JSON.stringify({ event: "claude_failed", draftId: input.draftId }));
     return Response.json({ error: message }, { status: 502, headers: { "x-draft-id": input.draftId } });
+  }
+
+  if (input.note) {
+    try {
+      await addMessage(env.DB, input.draftId, "user", "change", input.note);
+    } catch {
+      console.error(JSON.stringify({ event: "change_save_failed", draftId: input.draftId }));
+      await upstream.body?.cancel();
+      return Response.json(
+        { error: "The change could not be saved." },
+        { status: 502, headers: { "x-draft-id": input.draftId } },
+      );
+    }
   }
 
   let collected = "";

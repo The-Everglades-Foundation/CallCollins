@@ -36,7 +36,10 @@ pasted notes or one PDF, DOCX, or TXT file. The studio shows the file
 name and uses the extracted text.
 
 The Worker streams the remarks. On the same draft, the room can ask for
-a shorter version, a more boardroom version, or talking points.
+a shorter version, a more boardroom version, or talking points. A chat
+at the bottom of a finished draft takes a change in the executive's own
+words and rewrites the latest remarks. Download Word saves that latest
+version as a DOCX file.
 
 If Claude fails before any remarks arrive, the brief stays on the draft.
 
@@ -118,7 +121,7 @@ for that hostname too.
 ```text
 src/pages/index.astro          sign-in
 src/pages/room.astro           drafting room
-src/pages/api/                 session, drafts, voice, shelf, style card
+src/pages/api/                 session, drafts, revisions, Word download, voice, shelf, style card
 src/lib/claude.ts              server-side Messages API
 migrations/0001_init.sql       D1 schema
 wrangler.jsonc                 Worker, D1 binding, observability

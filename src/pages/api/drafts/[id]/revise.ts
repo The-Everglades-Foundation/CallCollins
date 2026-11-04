@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { env } from "cloudflare:workers";
 import { listMessages, readDraft } from "../../../../lib/db.ts";
-import { isRevisionKind, revisionPrompt } from "../../../../lib/prompt.ts";
+import { CHANGE_LIMIT, changePrompt, isRevisionKind, revisionPrompt } from "../../../../lib/prompt.ts";
 import { currentExecutive, promptFor, streamRemarks } from "../../../../lib/studio.ts";
 
 export const POST: APIRoute = async (context) => {
@@ -12,12 +12,8 @@ export const POST: APIRoute = async (context) => {
   const draft = await readDraft(env.DB, executive.id, draftId);
   if (!draft) return Response.json({ error: "That draft is not in your account." }, { status: 404 });
 
-  const body = (await context.request.json().catch(() => null)) as { kind?: string } | null;
+  const body = (await context.request.json().catch(() => null)) as { kind?: string; request?: unknown } | null;
   const kind = body?.kind ?? "";
-  if (!isRevisionKind(kind)) {
-    return Response.json({ error: "Choose a revision." }, { status: 400 });
-  }
-
   const messages = await listMessages(env.DB, draft.id);
   const latest = [...messages].reverse().find((message) => message.role === "assistant");
   if (!latest) return Response.json({ error: "Draft the remarks before revising them." }, { status: 400 });
@@ -29,8 +25,39 @@ export const POST: APIRoute = async (context) => {
     notes: "",
     fileName: draft.file_name,
   };
+
+  let request = "";
+  if (kind === "change") {
+    request = typeof body?.request === "string" ? body.request.replace(/\r\n/g, "\n").trim() : "";
+    if (!request) return Response.json({ error: "Write the change you want." }, { status: 400 });
+    if (request.length > CHANGE_LIMIT) {
+      return Response.json({ error: "Keep the change request under 4,000 characters." }, { status: 400 });
+    }
+  } else if (!isRevisionKind(kind)) {
+    return Response.json({ error: "Choose a revision." }, { status: 400 });
+  }
+
   const system = await promptFor(executive.id, brief);
-  const user = revisionPrompt(kind, latest.content, brief);
+  if (kind === "change") {
+    const earlier = messages
+      .filter((message) => message.role === "user" && message.kind === "change")
+      .slice(-8)
+      .map((message) => message.content);
+    console.log(JSON.stringify({ event: "revision_started", draftId: draft.id, kind }));
+    return streamRemarks({
+      draftId: draft.id,
+      kind: "revision",
+      system,
+      user: changePrompt(request, latest.content, brief, earlier),
+      note: request,
+    });
+  }
+
   console.log(JSON.stringify({ event: "revision_started", draftId: draft.id, kind }));
-  return streamRemarks({ draftId: draft.id, kind, system, user });
+  return streamRemarks({
+    draftId: draft.id,
+    kind,
+    system,
+    user: revisionPrompt(kind, latest.content, brief),
+  });
 };
