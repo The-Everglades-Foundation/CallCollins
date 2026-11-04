@@ -10,6 +10,8 @@ export type Brief = {
 
 export type RevisionKind = "shorter" | "boardroom" | "talking_points";
 
+export const CHANGE_LIMIT = 4_000;
+
 const REVISION: Record<RevisionKind, string> = {
   shorter: "Cut the remarks to about half. Keep the point and the occasion.",
   boardroom: "Rewrite for a board table. Less oratory, more decision, still in Collins' voice.",
@@ -55,6 +57,28 @@ export function briefPrompt(brief: Brief): string {
 export function revisionPrompt(kind: RevisionKind, latest: string, brief: Brief): string {
   return [
     REVISION[kind],
+    "",
+    `Audience: ${brief.audience}`,
+    `Occasion: ${brief.occasion}`,
+    `Point: ${brief.point}`,
+    "",
+    "Latest remarks:",
+    latest,
+  ].join("\n");
+}
+
+export function changePrompt(request: string, latest: string, brief: Brief, earlier: string[]): string {
+  const history = earlier.length
+    ? ["Earlier change requests:", ...earlier.map((item) => `- ${item}`), ""]
+    : [];
+  return [
+    "Revise the latest remarks to follow the requested change.",
+    "Keep Mike Collins' voice, the audience, and the occasion.",
+    "Keep facts the request does not ask you to remove. Do not invent statistics, quotations, or citations.",
+    "Write the revised remarks themselves. No title and no preamble.",
+    "",
+    ...history,
+    `Requested change: ${request}`,
     "",
     `Audience: ${brief.audience}`,
     `Occasion: ${brief.occasion}`,

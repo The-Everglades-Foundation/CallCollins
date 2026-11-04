@@ -3,6 +3,7 @@ import { env } from "cloudflare:workers";
 import Layout from "../layouts/Layout.astro";
 import { resolveExecutive } from "../lib/access.ts";
 import { listDrafts, listHouse, listMessages, listShelf, readDraft, readStyleCard } from "../lib/db.ts";
+import { CHANGE_LIMIT } from "../lib/prompt.ts";
 
 const executive = await resolveExecutive(Astro.request, Astro.cookies.get("cc_session")?.value);
 if (!executive) return Astro.redirect("/");
@@ -23,6 +24,8 @@ const labels: Record<string, string> = {
   shorter: "Shorter",
   boardroom: "Boardroom",
   talking_points: "Talking points",
+  change: "Change request",
+  revision: "Revised remarks",
 };
 
 function clip(value: string): string {
@@ -116,24 +119,42 @@ function clip(value: string): string {
       )}
       <div class="thread" id="thread">
         {messages.map((message) => (
-          <article class="piece">
+          <article class:list={["piece", message.role === "user" && "from-you"]}>
             <p class="kicker">{labels[message.kind] ?? "Note"}</p>
             <p class={message.role === "assistant" ? "speech" : ""}>{message.content}</p>
           </article>
         ))}
         <article class="piece" id="live" hidden>
-          <p class="kicker">Remarks</p>
+          <p class="kicker" id="live-kicker">Remarks</p>
           <p class="speech" id="live-speech"></p>
         </article>
       </div>
       {latestSpeech && draft && (
-        <div class="actions" id="revisions">
-          <button type="button" data-kind="shorter">Shorter</button>
-          <button type="button" data-kind="boardroom">More boardroom</button>
-          <button type="button" data-kind="talking_points">Talking points</button>
-          <form method="post" action="/api/shelf">
-            <input type="hidden" name="draft" value={draft.id} />
-            <button class="quiet" type="submit">Add to my shelf</button>
+        <div class="dock">
+          <div class="actions" id="revisions">
+            <button type="button" data-kind="shorter">Shorter</button>
+            <button type="button" data-kind="boardroom">More boardroom</button>
+            <button type="button" data-kind="talking_points">Talking points</button>
+            <a class="button quiet" href={`/api/drafts/${draft.id}/docx`}>Download Word</a>
+            <form method="post" action="/api/shelf">
+              <input type="hidden" name="draft" value={draft.id} />
+              <button class="quiet" type="submit">Add to my shelf</button>
+            </form>
+          </div>
+          <form class="chat" id="chat">
+            <label for="request">Request a change</label>
+            <div class="chat-row">
+              <textarea
+                id="request"
+                name="request"
+                maxlength={CHANGE_LIMIT}
+                required
+                placeholder="Ask for a change in these remarks."
+              ></textarea>
+              <button type="submit">Send</button>
+            </div>
+            <p class="hint">Enter sends. Shift+Enter adds a line.</p>
+            <p id="status" role="status"></p>
           </form>
         </div>
       )}
@@ -155,8 +176,8 @@ function clip(value: string): string {
           </div>
         </form>
       )}
-      {draft && <p id="status" role="status"></p>}
-      <noscript><p class="meta">Drafting and revisions need JavaScript. House voice, the shelf, and sign-in work from the forms.</p></noscript>
+      {draft && !latestSpeech && <p id="status" role="status"></p>}
+      <noscript><p class="meta">Drafting, revisions, and change requests need JavaScript. Download Word, House voice, the shelf, and sign-in work without it.</p></noscript>
     </main>
   </div>
 </Layout>
@@ -164,22 +185,55 @@ function clip(value: string): string {
 <script>
   const stage = document.querySelector("main.stage");
   const status = document.querySelector("#status");
+  const thread = document.querySelector("#thread");
   const live = document.querySelector("#live");
+  const liveKicker = document.querySelector("#live-kicker");
   const liveSpeech = document.querySelector("#live-speech");
   const composer = document.querySelector("#composer");
+  const chat = document.querySelector("#chat");
+  const requestBox = document.querySelector("#request");
+  let busy = false;
 
-  function setBusy(busy: boolean) {
+  if (thread instanceof HTMLElement && thread.scrollHeight > thread.clientHeight) {
+    thread.scrollTop = thread.scrollHeight;
+  }
+
+  function setBusy(next: boolean) {
+    busy = next;
     document.querySelectorAll("button").forEach((button) => {
-      if (button instanceof HTMLButtonElement) button.disabled = busy;
+      if (button instanceof HTMLButtonElement) button.disabled = next;
     });
   }
 
-  async function draft(url: string, body: BodyInit, json = false) {
+  function followThread() {
+    if (thread instanceof HTMLElement && thread.scrollHeight > thread.clientHeight) {
+      thread.scrollTop = thread.scrollHeight;
+    } else if (live instanceof HTMLElement) {
+      live.scrollIntoView({ block: "nearest" });
+    }
+  }
+
+  function showRequest(text: string) {
+    if (!(thread instanceof HTMLElement) || !(live instanceof HTMLElement)) return;
+    const article = document.createElement("article");
+    article.className = "piece from-you";
+    const kicker = document.createElement("p");
+    kicker.className = "kicker";
+    kicker.textContent = "Change request";
+    const body = document.createElement("p");
+    body.textContent = text;
+    article.append(kicker, body);
+    thread.insertBefore(article, live);
+  }
+
+  async function draft(url: string, body: BodyInit, json = false, requestText = "", kicker = "Remarks") {
     if (!(status instanceof HTMLElement) || !(live instanceof HTMLElement) || !(liveSpeech instanceof HTMLElement)) return;
     setBusy(true);
-    status.textContent = "Drafting…";
+    if (liveKicker instanceof HTMLElement) liveKicker.textContent = requestText ? "Revised remarks" : kicker;
+    status.textContent = json ? "Revising…" : "Drafting…";
     live.hidden = false;
     liveSpeech.textContent = "";
+    followThread();
     try {
       const response = await fetch(url, {
         method: "POST",
@@ -199,12 +253,17 @@ function clip(value: string): string {
         setBusy(false);
         return;
       }
+      if (requestText) {
+        showRequest(requestText);
+        if (requestBox instanceof HTMLTextAreaElement) requestBox.value = "";
+      }
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       while (true) {
         const step = await reader.read();
         if (step.done) break;
         liveSpeech.textContent += decoder.decode(step.value, { stream: true });
+        followThread();
       }
       const id = response.headers.get("x-draft-id") || stage?.getAttribute("data-draft-id");
       if (id) window.location.href = `/room?draft=${id}`;
@@ -217,16 +276,41 @@ function clip(value: string): string {
 
   composer?.addEventListener("submit", (event) => {
     event.preventDefault();
-    if (!(composer instanceof HTMLFormElement)) return;
+    if (busy || !(composer instanceof HTMLFormElement)) return;
     void draft("/api/drafts", new FormData(composer));
   });
 
   document.querySelectorAll("[data-kind]").forEach((button) => {
     button.addEventListener("click", () => {
+      if (busy) return;
       const id = stage?.getAttribute("data-draft-id");
       const kind = button.getAttribute("data-kind");
       if (!id || !kind) return;
-      void draft(`/api/drafts/${id}/revise`, JSON.stringify({ kind }), true);
+      const kickers: Record<string, string> = {
+        shorter: "Shorter",
+        boardroom: "Boardroom",
+        talking_points: "Talking points",
+      };
+      void draft(`/api/drafts/${id}/revise`, JSON.stringify({ kind }), true, "", kickers[kind] ?? "Remarks");
     });
+  });
+
+  requestBox?.addEventListener("keydown", (event) => {
+    if (!(event instanceof KeyboardEvent) || event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+    event.preventDefault();
+    if (chat instanceof HTMLFormElement) chat.requestSubmit();
+  });
+
+  chat?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (busy || !(chat instanceof HTMLFormElement) || !(requestBox instanceof HTMLTextAreaElement)) return;
+    const request = requestBox.value.trim();
+    const id = stage?.getAttribute("data-draft-id");
+    if (!id) return;
+    if (!request) {
+      if (status instanceof HTMLElement) status.textContent = "Write the change you want.";
+      return;
+    }
+    void draft(`/api/drafts/${id}/revise`, JSON.stringify({ kind: "change", request }), true, request);
   });
 </script>

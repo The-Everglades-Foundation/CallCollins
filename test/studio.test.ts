@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { zipSync, strToU8 } from "fflate";
 import { docxToText, readUpload } from "../src/lib/files.ts";
-import { briefPrompt, systemPrompt } from "../src/lib/prompt.ts";
+import { briefPrompt, changePrompt, isRevisionKind, systemPrompt } from "../src/lib/prompt.ts";
 import { selectExamples, type VoiceSample } from "../src/lib/retrieve.ts";
 
 test("docx text keeps the paragraph", async () => {
@@ -41,6 +41,35 @@ test("prompts carry the style card and the brief", () => {
   });
   assert.match(brief, /Keep the promise/);
   assert.match(brief, /notes.txt/);
+});
+
+test("a change request revises the latest remarks", () => {
+  assert.equal(isRevisionKind("change"), false);
+  const prompt = changePrompt(
+    "Open with the reservoir.",
+    "Send clean water south.",
+    {
+      audience: "the board",
+      occasion: "October meeting",
+      point: "Keep the promise",
+      notes: "",
+      fileName: null,
+    },
+    ["Cut the second paragraph."],
+  );
+  assert.match(prompt, /Open with the reservoir/);
+  assert.match(prompt, /Send clean water south/);
+  assert.match(prompt, /Cut the second paragraph/);
+  assert.match(prompt, /Do not invent statistics/);
+  assert.match(prompt, /the board/);
+});
+
+test("the room offers a change request and a Word download", () => {
+  const room = readFileSync("src/pages/room.astro", "utf8");
+  assert.match(room, /id="chat"/);
+  assert.match(room, /Request a change/);
+  assert.match(room, /Download Word/);
+  assert.match(room, /\/docx/);
 });
 
 test("the pages do not ask the visitor for an API key", () => {
